@@ -1,0 +1,48 @@
+version: '3.9'
+services:
+  app:
+    build: .
+    deploy:
+      replicas: 5
+      restart_policy:
+        max_attempts: 3
+        condition: on-failure
+      update_config:
+        parallelism: 3
+        delay: 10s
+    depends_on:
+      - mongodb
+      - redis
+    volumes:
+      - ./config:/app/config
+    environment:
+      PORT: 3000
+      VAPID_SUBJECT: 'mailto:denzelcodedev@gmail.com'
+      VAPID_PRIVATE_KEY: ''
+      VAPID_PUBLIC_KEY: ''
+  nginx:
+    image: nginx
+    ports:
+      - '3000:80'
+    depends_on:
+      - app
+    environment:
+      NGINX_ENVSUBST_TEMPLATE_SUFFIX: '.conf'
+      API_HOST: app
+      API_PORT: 3000
+    deploy:
+      placement:
+        constraints: [ node.role == manager ]
+    volumes:
+      - ./docker/nginx/templates:/etc/nginx/templates/
+  mongodb:
+    image: mongo:latest
+    container_name: 'mongodb'
+    ports:
+      - '27017:27017'
+    volumes:
+      - ./docker/volumes/mongodb_data_container:/data/db
+  redis:
+    image: redis
+    ports:
+      - '6379:6379'
